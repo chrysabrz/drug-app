@@ -162,12 +162,28 @@ class ComprehensiveDrugQuery:
             return None
         return entry.get('parsed_dosing', {})
     
+    @staticmethod
+    def _normalize_category_name(category_entry) -> str:
+        """Normalize category entries that may be dicts or strings."""
+        if isinstance(category_entry, dict):
+            for key in ('category', 'name', 'mesh_id'):
+                value = category_entry.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+        elif isinstance(category_entry, str):
+            return category_entry.strip()
+        elif category_entry is not None:
+            text = str(category_entry).strip()
+            if text:
+                return text
+        return ''
+    
     def get_all_categories(self) -> List[str]:
         """Get all unique drug categories"""
         categories = set()
         for drug in self.drugs:
             for cat in drug.get('categories', []):
-                cat_name = cat.get('category', '')
+                cat_name = self._normalize_category_name(cat)
                 if cat_name:
                     categories.add(cat_name)
         return sorted(list(categories))
@@ -178,7 +194,9 @@ class ComprehensiveDrugQuery:
         category_lower = category.lower()
         for drug in self.drugs:
             for cat in drug.get('categories', []):
-                cat_name = str(cat.get('category', '')).lower()
+                cat_name = self._normalize_category_name(cat).lower()
+                if not cat_name:
+                    continue
                 if category_lower in cat_name or cat_name in category_lower:
                     results.append(drug.get('name'))
                     break
@@ -306,10 +324,17 @@ class ComprehensiveDrugQuery:
         interactions = []
         
         # Get drug categories
-        categories1 = [cat.get('name', '').lower() if isinstance(cat, dict) else str(cat).lower() 
-                      for cat in drug1.get('categories', [])]
-        categories2 = [cat.get('name', '').lower() if isinstance(cat, dict) else str(cat).lower() 
-                      for cat in drug2.get('categories', [])]
+        categories1 = []
+        for cat in drug1.get('categories', []):
+            normalized = self._normalize_category_name(cat)
+            if normalized:
+                categories1.append(normalized.lower())
+        
+        categories2 = []
+        for cat in drug2.get('categories', []):
+            normalized = self._normalize_category_name(cat)
+            if normalized:
+                categories2.append(normalized.lower())
         
         # Also check mechanism of action and description for drug class keywords
         moa1 = (drug1.get('mechanism_of_action', '') or '').lower()
@@ -1709,8 +1734,13 @@ def main():
             if not categories:
                 return []
             
-            # Get first category
-            first_category = categories[0].get('category', '') if categories else ''
+            # Get first valid category name
+            first_category = ''
+            for entry in categories:
+                first_category = db._normalize_category_name(entry)
+                if first_category:
+                    break
+            
             if not first_category:
                 return []
             

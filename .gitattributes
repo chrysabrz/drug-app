@@ -1,1 +1,1 @@
-# comprehensive_drug_database_compact.json is generated during build, not committed
+*.json filter=lfs diff=lfs merge=lfs -text

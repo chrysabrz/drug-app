@@ -48,10 +48,5 @@ Thumbs.db
 *.tmp
 *.temp
 
-# Database files (downloaded during build, not committed)
-comprehensive_drug_database.json
-comprehensive_drug_database_compact.json
-OpenFDAfull.json
-
 
 
