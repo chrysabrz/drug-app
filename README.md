@@ -44,8 +44,9 @@ streamlit run app.py
 
 For AI features, set the OpenAI API key in Render's environment variables:
 - `OPENAI_API_KEY`: Your OpenAI API key (optional, only needed for AI tab)
+- `ENABLE_OPENFDA_DATA`: Leave `true` for full functionality; set to `false` on low-memory plans (like Render Hobby) to skip loading the large OpenFDA dataset.
 
-Note: The app will work without the OpenAI API key, but the AI Drug Agent tab will not function.
+Note: The app will work without the OpenAI API key, but the AI Drug Agent tab will not function. If `ENABLE_OPENFDA_DATA=false`, dosing fallbacks will be limited but the app stays within memory limits.
 
 ## File Structure
 

@@ -7,5 +7,7 @@ services:
     envVars:
       - key: OPENAI_API_KEY
         sync: false  # Set this in Render dashboard
+      - key: ENABLE_OPENFDA_DATA
+        value: "true"  # Keep full OpenFDA dataset; set to false only if memory constrained
     plan: free  # Change to starter or higher for production
 

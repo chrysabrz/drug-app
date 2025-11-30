@@ -50,7 +50,10 @@ git push -u origin main
 5. Add Environment Variable:
    - **Key**: `OPENAI_API_KEY`
    - **Value**: Your OpenAI API key (optional, only needed for AI features)
-6. Click "Create Web Service"
+6. (Optional) Add Environment Variable for memory savings:
+   - **Key**: `ENABLE_OPENFDA_DATA`
+   - **Value**: `false` (skip the large OpenFDA dataset on low-memory plans; leave `true` for full data)
+7. Click "Create Web Service"
 
 ## Step 3: Wait for Deployment
 
@@ -74,10 +77,12 @@ Once deployed, you'll get a URL like: `https://drug-compatibility-app.onrender.c
   - Using a paid Render plan
   - Compressing the JSON files
   - Using external storage (S3, etc.)
+  - Disabling the OpenFDA dataset via `ENABLE_OPENFDA_DATA=false`
 
 ### Environment Variables
 
 - `OPENAI_API_KEY`: Required only for the AI Drug Agent tab
+- `ENABLE_OPENFDA_DATA`: Toggle to `false` if the OpenFDA dataset pushes the app over memory limits
 - Without it, all other features will work normally
 
 ### Performance

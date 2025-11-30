@@ -10,6 +10,7 @@ import time
 import re
 import os
 import openai
+import ijson
 import urllib.request
 import urllib.parse
 from bs4 import BeautifulSoup
@@ -26,13 +27,12 @@ class ComprehensiveDrugQuery:
         self.metadata = data.get('metadata', {})
         self.drugs = data.get('drugs', [])
         
-        # Load OpenFDA data for better dosing information
-        try:
-            with open(openfda_file, 'r', encoding='utf-8') as f:
-                openfda_data = json.load(f)
-            self.openfda_drugs = openfda_data.get('drugs', {})
-        except FileNotFoundError:
-            self.openfda_drugs = {}
+        # Allow disabling heavy OpenFDA dataset to stay within low-memory plans
+        openfda_enabled = os.getenv('ENABLE_OPENFDA_DATA', 'true').lower() not in ('0', 'false', 'no')
+        self.openfda_drugs = {}
+        self.openfda_name_index = {}
+        if openfda_enabled:
+            self._load_openfda_data(openfda_file)
         
         # Create name index
         self.name_index = {}
@@ -57,6 +57,93 @@ class ComprehensiveDrugQuery:
                 idx = self.name_index[name]
                 results.append(self.drugs[idx].get('name'))
         return sorted(results)[:50]  # Limit to 50 results
+    
+    def _load_openfda_data(self, openfda_file: str) -> None:
+        """Stream OpenFDA dataset and keep only lightweight dosing/index info."""
+        try:
+            with open(openfda_file, 'rb') as f:
+                for drug_id, raw_entry in ijson.kvitems(f, 'drugs'):
+                    simplified = self._simplify_openfda_entry(raw_entry)
+                    if simplified:
+                        self.openfda_drugs[drug_id] = simplified
+                        self._index_openfda_name(simplified.get('drug_name'), drug_id)
+                        for name in simplified.get('generic_names', []):
+                            self._index_openfda_name(name, drug_id)
+                        for name in simplified.get('brand_names', []):
+                            self._index_openfda_name(name, drug_id)
+        except FileNotFoundError:
+            self.openfda_drugs = {}
+            self.openfda_name_index = {}
+        except Exception as exc:
+            # If streaming fails, log minimal information and continue without OpenFDA
+            print(f"Warning: Failed to load OpenFDA data: {exc}")
+            self.openfda_drugs = {}
+            self.openfda_name_index = {}
+    
+    def _simplify_openfda_entry(self, raw_entry: Dict) -> Optional[Dict]:
+        """Reduce OpenFDA entry to essential fields to stay within memory limits."""
+        if not raw_entry:
+            return None
+        openfda_data = raw_entry.get('openfda_data', {})
+        parsed_dosing = openfda_data.get('parsed_dosing', {}) or {}
+        openfda_meta = openfda_data.get('openfda', {}) or {}
+        
+        def _as_list(values):
+            if isinstance(values, list):
+                return values
+            if isinstance(values, str):
+                return [values]
+            return []
+        
+        def _clean_list(values):
+            return [str(v).strip() for v in _as_list(values) if isinstance(v, str) and v.strip()]
+        
+        simplified = {
+            'drug_name': raw_entry.get('drug_name', '').strip(),
+            'generic_names': _clean_list(openfda_meta.get('generic_name', [])),
+            'brand_names': _clean_list(openfda_meta.get('brand_name', [])),
+            'parsed_dosing': {
+                'frequency': parsed_dosing.get('frequency'),
+                'times_per_day': parsed_dosing.get('times_per_day'),
+                'times_per_day_range': parsed_dosing.get('times_per_day_range'),
+                'routes': parsed_dosing.get('routes') or _clean_list(openfda_meta.get('route', [])),
+                'route': parsed_dosing.get('route'),
+                'instructions': parsed_dosing.get('instructions'),
+                'has_dosing': parsed_dosing.get('has_dosing'),
+                'source': parsed_dosing.get('source'),
+            }
+        }
+        # Drop entries without useful dosing data
+        if not any(simplified['parsed_dosing'].values()):
+            return None
+        return simplified
+    
+    def _index_openfda_name(self, name: Optional[str], drug_id: str) -> None:
+        if not name:
+            return
+        key = name.lower().strip()
+        if not key:
+            return
+        self.openfda_name_index.setdefault(key, drug_id)
+    
+    def _search_openfda_partial(self, query_lower: str) -> Optional[Dict]:
+        for entry in self.openfda_drugs.values():
+            stored = entry.get('drug_name', '').lower()
+            if query_lower in stored or stored.startswith(query_lower):
+                return entry
+        return None
+    
+    def _get_openfda_dosing(self, drug_name: str) -> Optional[Dict]:
+        if not self.openfda_drugs:
+            return None
+        query_lower = drug_name.lower().strip()
+        entry_id = self.openfda_name_index.get(query_lower)
+        entry = self.openfda_drugs.get(entry_id) if entry_id else None
+        if not entry:
+            entry = self._search_openfda_partial(query_lower)
+        if not entry:
+            return None
+        return entry.get('parsed_dosing', {})
     
     def get_all_categories(self) -> List[str]:
         """Get all unique drug categories"""
@@ -96,48 +183,7 @@ class ComprehensiveDrugQuery:
         dosing = drug.get('dosing_info', {})
         
         # Try to get OpenFDA data for better dosing information
-        openfda_dosing_data = None
-        drug_name_lower = drug_name.lower().strip()
-        
-        # Search in OpenFDA data by drug name (fuzzy matching)
-        for drug_id, openfda_drug in self.openfda_drugs.items():
-            # Check drug_name field (might be full description)
-            stored_name = openfda_drug.get('drug_name', '').lower()
-            
-            # Exact match
-            if stored_name == drug_name_lower:
-                openfda_data = openfda_drug.get('openfda_data', {})
-                openfda_dosing_data = openfda_data.get('parsed_dosing', {})
-                break
-            
-            # Check if drug_name contains our search term (for description-based names)
-            if drug_name_lower in stored_name or stored_name.startswith(drug_name_lower):
-                openfda_data = openfda_drug.get('openfda_data', {})
-                openfda_dosing_data = openfda_data.get('parsed_dosing', {})
-                break
-            
-            # Check openfda.generic_name and brand_name
-            openfda_meta = openfda_drug.get('openfda_data', {}).get('openfda', {})
-            generic_names = openfda_meta.get('generic_name', [])
-            brand_names = openfda_meta.get('brand_name', [])
-            
-            # Check generic names
-            for gen_name in generic_names:
-                if isinstance(gen_name, str) and gen_name.lower().strip() == drug_name_lower:
-                    openfda_data = openfda_drug.get('openfda_data', {})
-                    openfda_dosing_data = openfda_data.get('parsed_dosing', {})
-                    break
-            if openfda_dosing_data:
-                break
-            
-            # Check brand names
-            for brand_name in brand_names:
-                if isinstance(brand_name, str) and brand_name.lower().strip() == drug_name_lower:
-                    openfda_data = openfda_drug.get('openfda_data', {})
-                    openfda_dosing_data = openfda_data.get('parsed_dosing', {})
-                    break
-            if openfda_dosing_data:
-                break
+        openfda_dosing_data = self._get_openfda_dosing(drug_name)
         
         # Extract dosing data, checking OpenFDA first, then openfda_full
         frequency = dosing.get('frequency')
@@ -353,48 +399,7 @@ class ComprehensiveDrugQuery:
             times_per_day = dosing.get('times_per_day')
             
             # Try to get OpenFDA data first (most reliable)
-            openfda_dosing_data = None
-            drug_name_lower = drug_name.lower().strip()
-            
-            # Search in OpenFDA data by drug name (fuzzy matching)
-            for drug_id, openfda_drug in self.openfda_drugs.items():
-                # Check drug_name field (might be full description)
-                stored_name = openfda_drug.get('drug_name', '').lower()
-                
-                # Exact match
-                if stored_name == drug_name_lower:
-                    openfda_data = openfda_drug.get('openfda_data', {})
-                    openfda_dosing_data = openfda_data.get('parsed_dosing', {})
-                    break
-                
-                # Check if drug_name contains our search term (for description-based names)
-                if drug_name_lower in stored_name or stored_name.startswith(drug_name_lower):
-                    openfda_data = openfda_drug.get('openfda_data', {})
-                    openfda_dosing_data = openfda_data.get('parsed_dosing', {})
-                    break
-                
-                # Check openfda.generic_name and brand_name
-                openfda_meta = openfda_drug.get('openfda_data', {}).get('openfda', {})
-                generic_names = openfda_meta.get('generic_name', [])
-                brand_names = openfda_meta.get('brand_name', [])
-                
-                # Check generic names
-                for gen_name in generic_names:
-                    if isinstance(gen_name, str) and gen_name.lower().strip() == drug_name_lower:
-                        openfda_data = openfda_drug.get('openfda_data', {})
-                        openfda_dosing_data = openfda_data.get('parsed_dosing', {})
-                        break
-                if openfda_dosing_data:
-                    break
-                
-                # Check brand names
-                for brand_name in brand_names:
-                    if isinstance(brand_name, str) and brand_name.lower().strip() == drug_name_lower:
-                        openfda_data = openfda_drug.get('openfda_data', {})
-                        openfda_dosing_data = openfda_data.get('parsed_dosing', {})
-                        break
-                if openfda_dosing_data:
-                    break
+            openfda_dosing_data = self._get_openfda_dosing(drug_name)
             
             # Check OpenFDA data first
             if openfda_dosing_data:
