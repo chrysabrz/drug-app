@@ -48,3 +48,6 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Generated compact database (built during deployment)
+comprehensive_drug_database_compact.json
+
