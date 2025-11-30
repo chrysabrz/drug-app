@@ -8,12 +8,11 @@ Defaults to the provided Google Drive link for the compact DB.
 from __future__ import annotations
 
 import os
-import re
 import sys
 from pathlib import Path
 from typing import Optional
 
-import requests
+import gdown
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPACT_DB = ROOT / "comprehensive_drug_database_compact.json"
@@ -23,55 +22,31 @@ FULL_DB = ROOT / "comprehensive_drug_database.json"
 DEFAULT_COMPACT_URL = "https://drive.google.com/file/d/12o_cdObA01lxXJMY8LjCqlPVrXF56bZF/view?usp=drive_link"
 
 
-def extract_drive_file_id(url: str) -> Optional[str]:
-    """Extract Google Drive file ID from various URL formats."""
-    patterns = [
-        r"https://drive\.google\.com/file/d/([^/]+)/",
-        r"id=([^&]+)"
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
-    return None
-
-
-def build_drive_download_url(file_id: str) -> str:
-    return f"https://drive.google.com/uc?export=download&id={file_id}"
-
-
 def download_file(url: str, target: Path) -> bool:
-    """Download a file, handling Google Drive confirmation tokens if needed."""
+    """Download a file (supports Google Drive links via gdown)."""
     try:
-        session = requests.Session()
-
-        file_id = extract_drive_file_id(url)
-        download_url = build_drive_download_url(file_id) if file_id else url
-
-        response = session.get(download_url, stream=True)
-        token = None
-        for key, value in response.cookies.items():
-            if key.startswith("download_warning"):
-                token = value
-                break
-
-        if token:
-            params = {"confirm": token}
-            response = session.get(download_url, params=params, stream=True)
-
-        response.raise_for_status()
-
+        if target.exists():
+            target.unlink()
         target.parent.mkdir(parents=True, exist_ok=True)
-        with open(target, "wb") as f:
-            for chunk in response.iter_content(32 * 1024):
-                if chunk:
-                    f.write(chunk)
-
+        gdown.download(url, str(target), quiet=False, fuzzy=True)
         size_mb = target.stat().st_size / (1024 ** 2)
+        if size_mb < 5 or _looks_like_html(target):
+            target.unlink(missing_ok=True)
+            raise ValueError("Download appears to be HTML/too small; Google Drive may have blocked the request.")
+
         print(f"✓ Downloaded {target.name} ({size_mb:.1f} MB)")
         return True
     except Exception as exc:
         print(f"✗ Failed to download {url} -> {target}: {exc}")
+        return False
+
+
+def _looks_like_html(path: Path) -> bool:
+    try:
+        with open(path, "rb") as f:
+            start = f.read(512).lstrip()
+            return start.startswith(b"<")
+    except Exception:
         return False
 
 
