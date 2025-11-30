@@ -29,8 +29,14 @@ class ComprehensiveDrugQuery:
         preferred_db = os.getenv('DRUG_DB_FILE', db_file)
         if not os.path.exists(preferred_db):
             preferred_db = 'comprehensive_drug_database.json'
+        
+        if not os.path.exists(preferred_db):
+            raise FileNotFoundError(
+                f"Database file not found. Expected one of: {db_file} or comprehensive_drug_database.json. "
+                f"Please ensure the database file is available in the working directory."
+            )
+        
         self.db_file = preferred_db
-
         print(f"Loading drug database from {self.db_file}")
         with open(self.db_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
