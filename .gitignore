@@ -48,5 +48,10 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Large database assets downloaded at build/runtime
+comprehensive_drug_database.json
+comprehensive_drug_database_compact.json
+OpenFDAfull.json
+
 
 
