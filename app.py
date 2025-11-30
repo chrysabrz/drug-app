@@ -5,23 +5,34 @@ Drug Compatibility Checker - Streamlit App
 
 import streamlit as st
 import json
-from typing import Dict, Optional, List
-import time
-import re
 import os
-import openai
+import re
+import time
+from typing import Dict, List, Optional
+
 import ijson
-import urllib.request
+import openai
 import urllib.parse
+import urllib.request
 from bs4 import BeautifulSoup
 
 
 class ComprehensiveDrugQuery:
     """Query interface for comprehensive database with OpenFDA fallback"""
-    
-    def __init__(self, db_file: str = 'comprehensive_drug_database.json', openfda_file: str = 'OpenFDAfull.json'):
-        # Load comprehensive database
-        with open(db_file, 'r', encoding='utf-8') as f:
+
+    def __init__(
+        self,
+        db_file: str = 'comprehensive_drug_database_compact.json',
+        openfda_file: str = 'OpenFDAfull.json',
+    ):
+        # Resolve database path (use compact version if available)
+        preferred_db = os.getenv('DRUG_DB_FILE', db_file)
+        if not os.path.exists(preferred_db):
+            preferred_db = 'comprehensive_drug_database.json'
+        self.db_file = preferred_db
+
+        print(f"Loading drug database from {self.db_file}")
+        with open(self.db_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
         self.metadata = data.get('metadata', {})

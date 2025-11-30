@@ -45,6 +45,7 @@ streamlit run app.py
 For AI features, set the OpenAI API key in Render's environment variables:
 - `OPENAI_API_KEY`: Your OpenAI API key (optional, only needed for AI tab)
 - `ENABLE_OPENFDA_DATA`: Leave `true` for full functionality; set to `false` on low-memory plans (like Render Hobby) to skip loading the large OpenFDA dataset.
+- `DRUG_DB_FILE`: Optional path to the drug database JSON. Defaults to the compact file described below.
 
 Note: The app will work without the OpenAI API key, but the AI Drug Agent tab will not function. If `ENABLE_OPENFDA_DATA=false`, dosing fallbacks will be limited but the app stays within memory limits.
 
@@ -64,6 +65,13 @@ drug_compatibility_app_deploy/
 
 - `comprehensive_drug_database.json`: Main drug database with interactions, properties, and dosing information
 - `OpenFDAfull.json`: Additional dosing information from OpenFDA (optional but recommended)
+- `comprehensive_drug_database_compact.json`: Auto-generated subset that keeps only the fields the app needs (~470 MB). Use this for deployments with limited RAM.
+
+To regenerate the compact database after updating the source JSON, run:
+
+```
+python scripts/compact_database.py
+```
 
 ## Usage
 

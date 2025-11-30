@@ -18,9 +18,15 @@ git add .
 git commit -m "Initial commit - Drug Compatibility App"
 ```
 
-2. Create a new repository on GitHub (don't initialize with README)
+2. (Optional but recommended) Generate the compact drug database to reduce RAM usage:
+```bash
+python scripts/compact_database.py
+```
+This writes `comprehensive_drug_database_compact.json`, which the app prefers automatically.
 
-3. Push your code:
+3. Create a new repository on GitHub (don't initialize with README)
+
+4. Push your code:
 ```bash
 git remote add origin <your-github-repo-url>
 git branch -M main
@@ -53,7 +59,10 @@ git push -u origin main
 6. (Optional) Add Environment Variable for memory savings:
    - **Key**: `ENABLE_OPENFDA_DATA`
    - **Value**: `false` (skip the large OpenFDA dataset on low-memory plans; leave `true` for full data)
-7. Click "Create Web Service"
+7. (Optional) Override the database file if you keep multiple copies:
+   - **Key**: `DRUG_DB_FILE`
+   - **Value**: `comprehensive_drug_database_compact.json`
+8. Click "Create Web Service"
 
 ## Step 3: Wait for Deployment
 
@@ -78,11 +87,13 @@ Once deployed, you'll get a URL like: `https://drug-compatibility-app.onrender.c
   - Compressing the JSON files
   - Using external storage (S3, etc.)
   - Disabling the OpenFDA dataset via `ENABLE_OPENFDA_DATA=false`
+  - Generating `comprehensive_drug_database_compact.json` with `python scripts/compact_database.py`
 
 ### Environment Variables
 
 - `OPENAI_API_KEY`: Required only for the AI Drug Agent tab
 - `ENABLE_OPENFDA_DATA`: Toggle to `false` if the OpenFDA dataset pushes the app over memory limits
+- `DRUG_DB_FILE`: Use this to point to `comprehensive_drug_database_compact.json` or any other curated dataset
 - Without it, all other features will work normally
 
 ### Performance
