@@ -801,7 +801,7 @@ def main():
         st.sidebar.info(f"📊 Drugs with dosing data: {db.metadata.get('drugs_with_dosing', 0):,}")
     except Exception as e:
         st.error(f"❌ Error loading database: {e}")
-        st.info("Please ensure 'comprehensive_drug_database.json' is in the same directory.")
+        st.info("Please ensure either 'comprehensive_drug_database_compact.json' or 'comprehensive_drug_database.json' is in the same directory.")
         return
     
     # Sidebar - How it works
