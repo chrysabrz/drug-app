@@ -146,7 +146,9 @@ def trim_drug(drug: dict) -> dict:
 
 def main() -> None:
     if not SOURCE.exists():
-        raise FileNotFoundError(f"Source database not found at {SOURCE}")
+        print(f"⚠️  Source database not found at {SOURCE}")
+        print("   Skipping compact database generation. App will use fallback logic.")
+        return
 
     print(f"Reading {SOURCE.stat().st_size / (1024**3):.2f} GB source file...")
 
