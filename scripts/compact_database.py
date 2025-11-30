@@ -148,6 +148,11 @@ def main() -> None:
     if not SOURCE.exists():
         raise FileNotFoundError(f"Source database not found at {SOURCE}")
 
+    # Skip if compact file already exists (useful for local dev)
+    if TARGET.exists():
+        print(f"Compact database already exists at {TARGET}, skipping generation.")
+        return
+
     print(f"Reading {SOURCE.stat().st_size / (1024**3):.2f} GB source file...")
 
     # Extract metadata first

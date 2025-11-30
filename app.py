@@ -23,12 +23,12 @@ class ComprehensiveDrugQuery:
     def __init__(
         self,
         db_file: str = 'comprehensive_drug_database_compact.json',
-        openfda_file: str = 'OpenFDAfull.json',
+      #  openfda_file: str = 'OpenFDAfull.json',
     ):
         # Resolve database path (use compact version if available)
         preferred_db = os.getenv('DRUG_DB_FILE', db_file)
         if not os.path.exists(preferred_db):
-            preferred_db = 'comprehensive_drug_database.json'
+            preferred_db = 'comprehensive_drug_database_compact.json'
         self.db_file = preferred_db
 
         print(f"Loading drug database from {self.db_file}")
@@ -800,7 +800,7 @@ def main():
         st.sidebar.success(f"✅ Database loaded: {len(db.drugs):,} drugs")
     except Exception as e:
         st.error(f"❌ Error loading database: {e}")
-        st.info("Please ensure 'comprehensive_drug_database.json' is in the same directory.")
+        st.info("Please ensure 'comprehensive_drug_database_compact.json' is in the same directory.")
         return
     
     # Sidebar - How it works
