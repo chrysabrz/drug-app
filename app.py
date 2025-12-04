@@ -8,6 +8,7 @@ import json
 import os
 import re
 import time
+import importlib
 from typing import Dict, List, Optional
 
 import ijson
@@ -15,6 +16,34 @@ import openai
 import urllib.parse
 import urllib.request
 from bs4 import BeautifulSoup
+
+
+if 'active_app' not in st.session_state:
+    st.session_state['active_app'] = 'drug'
+
+
+def _rerun_app():
+    """Compatibility wrapper for Streamlit rerun APIs."""
+    if hasattr(st, "experimental_rerun"):
+        st.experimental_rerun()
+    else:
+        st.rerun()
+
+
+def render_athero_app():
+    """Embed the Athero app inside this Streamlit session."""
+    os.environ["ATHERO_EMBEDDED"] = "1"
+    if 'athero_module' not in st.session_state:
+        try:
+            st.session_state['athero_module'] = importlib.import_module("athero.athero.app")
+        except ModuleNotFoundError:
+            st.error("Unable to load the Athero app module. Ensure 'athero/athero/app.py' exists.")
+            return
+    athero_app = st.session_state['athero_module']
+    if hasattr(athero_app, "main"):
+        athero_app.main()
+    else:
+        st.error("The Athero app module does not expose a 'main()' function.")
 
 
 class ComprehensiveDrugQuery:
@@ -822,6 +851,54 @@ def main():
         </style>
     """, unsafe_allow_html=True)
     
+    # Sidebar - How it works / toggle
+    with st.sidebar:
+        if st.session_state['active_app'] == 'drug':
+            st.markdown("---")
+            st.subheader("🔍 What This Tool Provides")
+            st.markdown("""
+            This assessment tool analyzes:
+            
+            1. **Drug Type**
+               - Small molecules vs biologics
+               - Suitability for 3D printing methods
+            
+            2. **Dosing Frequency**
+               - Times per day comparison
+               - Schedule compatibility
+            
+            3. **Drug Interactions**
+               - Known drug-drug interactions
+               - Severity and descriptions
+            
+            4. **Physical Properties**
+               - Melting point, solubility, etc.
+               - Routes of administration
+            
+            **Experts should evaluate all findings to determine compatibility.**
+            """)
+            
+            st.markdown("---")
+            st.markdown("**⚠️ Disclaimer:** This is an information tool. All findings require expert evaluation before any clinical decisions.")
+        
+        st.markdown("---")
+        st.subheader("⚙️ Launch Other Tools")
+        if st.session_state['active_app'] == 'drug':
+            if st.button("Open Athero App", use_container_width=True):
+                st.session_state['active_app'] = 'athero'
+                _rerun_app()
+            st.caption("Launches the embedded Athero research tool in this window.")
+        else:
+            st.success("Athero App is active.")
+            if st.button("Return to Drug App", use_container_width=True):
+                st.session_state['active_app'] = 'drug'
+                _rerun_app()
+            st.caption("Use the button above to go back to the Drug Compatibility tool.")
+    
+    if st.session_state['active_app'] == 'athero':
+        render_athero_app()
+        return
+    
     st.title("💊 Drug Interaction & 3D Printing Assessment Tool")
     st.markdown("**Analyze drug interactions, dosing schedules, and properties for expert evaluation**")
     
@@ -834,35 +911,6 @@ def main():
         st.error(f"❌ Error loading database: {e}")
         st.info("Please ensure either 'comprehensive_drug_database_compact.json' or 'comprehensive_drug_database.json' is in the same directory.")
         return
-    
-    # Sidebar - How it works
-    with st.sidebar:
-        st.markdown("---")
-        st.subheader("🔍 What This Tool Provides")
-        st.markdown("""
-        This assessment tool analyzes:
-        
-        1. **Drug Type**
-           - Small molecules vs biologics
-           - Suitability for 3D printing methods
-        
-        2. **Dosing Frequency**
-           - Times per day comparison
-           - Schedule compatibility
-        
-        3. **Drug Interactions**
-           - Known drug-drug interactions
-           - Severity and descriptions
-        
-        4. **Physical Properties**
-           - Melting point, solubility, etc.
-           - Routes of administration
-        
-        **Experts should evaluate all findings to determine compatibility.**
-        """)
-        
-        st.markdown("---")
-        st.markdown("**⚠️ Disclaimer:** This is an information tool. All findings require expert evaluation before any clinical decisions.")
     
     # Main tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔍 Check Compatibility", "📊 Single Drug Info", "📚 Search Database", "🏷️ Category-Based Selection", "🤖 AI Drug Agent"])
