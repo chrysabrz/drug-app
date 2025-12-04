@@ -40,6 +40,15 @@ def render_athero_app():
             st.error("Unable to load the Athero app module. Ensure 'athero/athero/app.py' exists.")
             return
     athero_app = st.session_state['athero_module']
+    # Ensure required session_state keys exist before delegating to the Athero app.
+    if 'data_loaded' not in st.session_state:
+        st.session_state['data_loaded'] = False
+    if 'all_data' not in st.session_state:
+        st.session_state['all_data'] = []
+    if 'yearly_counts' not in st.session_state:
+        st.session_state['yearly_counts'] = {}
+    if 'categories' not in st.session_state:
+        st.session_state['categories'] = []
     if hasattr(athero_app, "main"):
         athero_app.main()
     else:
