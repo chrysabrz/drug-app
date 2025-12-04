@@ -830,15 +830,34 @@ def render_filter_visualize_page(all_data):
     st.markdown("Apply filters below and see visualizations update in real-time!")
     
     # Extract unique values
-    all_lipoproteins = sorted(list(set(
-        item for sublist in [pub.get('extracted_lipoproteins', []) for pub in all_data if pub.get('extracted_lipoproteins')]
-        for item in (sublist if isinstance(sublist, list) else [sublist])
-    )))[:30]
+    lipoprotein_values = set()
+    for pub in all_data:
+        values = pub.get('extracted_lipoproteins')
+        if not values:
+            continue
+        items = values if isinstance(values, list) else [values]
+        for item in items:
+            normalized = normalize_lipoprotein_value(item)
+            if normalized:
+                lipoprotein_values.add(normalized)
+    
+    if not lipoprotein_values:
+        # Fallback to raw values if normalization removed everything
+        for pub in all_data:
+            values = pub.get('extracted_lipoproteins')
+            if not values:
+                continue
+            items = values if isinstance(values, list) else [values]
+            for item in items:
+                if item:
+                    lipoprotein_values.add(str(item))
+    
+    all_lipoproteins = sorted(list(lipoprotein_values))
     
     all_biomarkers = sorted(list(set(
         item for sublist in [pub.get('extracted_biomarkers', []) for pub in all_data if pub.get('extracted_biomarkers')]
         for item in (sublist if isinstance(sublist, list) else [sublist])
-    )))[:30]
+    )))
     
     # Filters Section
     with st.expander("🔍 Filters", expanded=True):
