@@ -16,6 +16,7 @@ import openai
 import urllib.parse
 import urllib.request
 from bs4 import BeautifulSoup
+from streamlit_searchbox import st_searchbox
 
 
 if 'active_app' not in st.session_state:
@@ -933,43 +934,45 @@ def main():
         
         with col1:
             st.subheader("Drug 1")
-            drug1_search = st.text_input(
-                "Search for first drug:",
-                key="drug1_search",
-                placeholder="Start typing drug name..."
+            
+            # Define search function for autocomplete
+            def search_drug1(searchterm: str) -> List[str]:
+                if not searchterm or len(searchterm) < 2:
+                    return []
+                return db.search_drugs(searchterm)
+            
+            drug1 = st_searchbox(
+                search_drug1,
+                label="Search for first drug:",
+                placeholder="Start typing drug name...",
+                key="drug1_searchbox",
+                clear_on_submit=False,
+                default=None
             )
             
-            if drug1_search and len(drug1_search) >= 2:
-                results1 = db.search_drugs(drug1_search)
-                drug1 = st.selectbox(
-                    "Select drug 1:",
-                    options=[""] + results1,
-                    key="drug1_select"
-                )
-            else:
-                drug1 = ""
-                if not drug1_search:
-                    st.info("👆 Type at least 2 characters to search")
+            if not drug1:
+                st.info("👆 Type at least 2 characters to search")
         
         with col2:
             st.subheader("Drug 2")
-            drug2_search = st.text_input(
-                "Search for second drug:",
-                key="drug2_search",
-                placeholder="Start typing drug name..."
+            
+            # Define search function for autocomplete
+            def search_drug2(searchterm: str) -> List[str]:
+                if not searchterm or len(searchterm) < 2:
+                    return []
+                return db.search_drugs(searchterm)
+            
+            drug2 = st_searchbox(
+                search_drug2,
+                label="Search for second drug:",
+                placeholder="Start typing drug name...",
+                key="drug2_searchbox",
+                clear_on_submit=False,
+                default=None
             )
             
-            if drug2_search and len(drug2_search) >= 2:
-                results2 = db.search_drugs(drug2_search)
-                drug2 = st.selectbox(
-                    "Select drug 2:",
-                    options=[""] + results2,
-                    key="drug2_select"
-                )
-            else:
-                drug2 = ""
-                if not drug2_search:
-                    st.info("👆 Type at least 2 characters to search")
+            if not drug2:
+                st.info("👆 Type at least 2 characters to search")
         
         st.markdown("---")
         
