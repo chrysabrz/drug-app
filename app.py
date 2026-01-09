@@ -773,7 +773,7 @@ def display_drug_card(drug_summary: Dict, title: str):
     # Drug Interactions - PROMINENT (Full text, no truncation)
     if drug_summary.get('interactions_list'):
         st.markdown("### 🔗 Drug Interactions")
-        with st.expander(f"View {drug_summary['interaction_count']} interactions", expanded=True):
+        with st.expander(f"View {drug_summary['interaction_count']} interactions", expanded=False):
             for i, interaction in enumerate(drug_summary['interactions_list'], 1):
                 drug_name = interaction.get('name', 'Unknown')
                 description = interaction.get('description', 'No description available')
@@ -850,7 +850,7 @@ def main():
     st.markdown("""
         <style>
         .stAlert > div {
-            padding: 1rem;
+            padding: 0.2rem;
         }
         .metric-container {
             background-color: #f0f2f6;
@@ -858,6 +858,22 @@ def main():
             border-radius: 0.5rem;
             margin: 0.5rem 0;
         }
+
+        // Customize "Drug Interactions" accordion
+        .stVerticalBlock DIV.stElementContainer .stMarkdown div div hr
+        {
+            margin: 0px !important;
+        }
+        .stMarkdown div div p
+        {
+            margin-bottom: 0px !important;
+        }
+        .stExpander>details>div>div.stVerticalBlock 
+        {
+            height: 400px;
+            overflow-y: scroll;
+        }
+        
         </style>
     """, unsafe_allow_html=True)
     
